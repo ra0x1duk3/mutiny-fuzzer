@@ -58,7 +58,7 @@ from backend.fuzzerdata import FuzzerData
 from backend.menu_functions import validateNumberRange
 
 # Path to Radamsa binary
-RADAMSA=os.path.abspath( os.path.join(__file__, "../radamsa-v0.6/bin/radamsa") )
+RADAMSA=os.path.abspath( os.path.join(__file__, "../radamsa-0.6/bin/radamsa") )
 # Whether to print debug info
 DEBUG_MODE=False
 # Test number to start from, 0 default
@@ -115,7 +115,7 @@ def receivePacket(connection, addr, bytesToRead):
 
 # Perform a fuzz run.  
 # If seed is -1, don't perform fuzzing (test run)
-def performRun(fuzzerData, host, logger, messageProcessor, seed=-1):
+def performRun(fuzzerData, host, logger, messageProcessor,checksums, seed=-1):
     # Before doing anything, set up logger
     # Otherwise, if connection is refused, we'll log last, but it will be wrong
     if logger != None:
@@ -246,7 +246,7 @@ def performRun(fuzzerData, host, logger, messageProcessor, seed=-1):
                 # Now run the fuzzer for each fuzzed subcomponent
                 for subcomponent in message.subcomponents:
                     if subcomponent.isFuzzed:
-                        radamsa = subprocess.Popen([RADAMSA, "--seed", str(seed)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        radamsa = subprocess.Popen([RADAMSA, "--seed", str(seed),"--checksums",int(checksums)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                         byteArray = subcomponent.getAlteredByteArray()
                         (fuzzedByteArray, error_output) = radamsa.communicate(input=byteArray)
                         fuzzedByteArray = bytearray(fuzzedByteArray)
@@ -311,6 +311,7 @@ parser = argparse.ArgumentParser(description=desc,epilog=epi)
 parser.add_argument("prepped_fuzz", help="Path to file.fuzzer")
 parser.add_argument("target_host", help="Target to fuzz")
 parser.add_argument("-s","--sleeptime",help="Time to sleep between fuzz cases (float)",type=float,default=0)
+parser.add_argument("-C","--checksums",help="The maximum number of checksums in uniqueness filter 0 to disable default 1000  (int)",type=int,default=1000)
 seed_constraint = parser.add_mutually_exclusive_group()
 seed_constraint.add_argument("-r", "--range", help="Run only the specified cases. Acceptable arg formats: [ X | X- | X-Y ], for integers X,Y") 
 seed_constraint.add_argument("-l", "--loop", help="Loop/repeat the given finite number range. Acceptible arg format: [ X | X-Y | X,Y,Z-Q,R | ...]")
@@ -452,16 +453,16 @@ while True:
         try:
             if args.dumpraw:
                 print("\n\nPerforming single raw dump case: %d" % args.dumpraw)
-                performRun(fuzzerData, host, logger, messageProcessor, seed=args.dumpraw)  
+                performRun(fuzzerData, host, logger, messageProcessor, seed=args.dumpraw, checksums = args.checksums)  
             elif i == MIN_RUN_NUMBER-1:
                 print("\n\nPerforming test run without fuzzing...")
-                performRun(fuzzerData, host, logger, messageProcessor, seed=-1) 
+                performRun(fuzzerData, host, logger, messageProcessor, seed=-1, checksums = args.checksums) 
             elif loop_len: 
                 print("\n\nFuzzing with seed %d" % (SEED_LOOP[i%loop_len]))
-                performRun(fuzzerData, host, logger, messageProcessor, seed=SEED_LOOP[i%loop_len]) 
+                performRun(fuzzerData, host, logger, messageProcessor, seed=SEED_LOOP[i%loop_len], checksums = args.checksums) 
             else:
                 print("\n\nFuzzing with seed %d" % (i))
-                performRun(fuzzerData, host, logger, messageProcessor, seed=i) 
+                performRun(fuzzerData, host, logger, messageProcessor, seed=i, checksums = args.checksums) 
             #if --quiet, (logger==None) => AttributeError
             if logAll:
                 try:
