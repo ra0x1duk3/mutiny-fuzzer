@@ -60,7 +60,7 @@ from backend.menu_functions import validateNumberRange
 # Path to Radamsa binary
 RADAMSA=os.path.abspath( os.path.join(__file__, "../radamsa-0.6/bin/radamsa") )
 # Whether to print debug info
-DEBUG_MODE=False
+DEBUG_MODE=True
 # Test number to start from, 0 default
 MIN_RUN_NUMBER=0
 # Test number to go to, -1 is unlimited
@@ -121,11 +121,12 @@ def performRun(fuzzerData, host, logger, messageProcessor,checksums, seed=-1):
     if logger != None:
         logger.resetForNewRun()
     
-    # We don't perform DNS resolution, but always automatically type "localhost"
-    # ... really need to go ahead and add DNS resolution soon
-    if host == "localhost":
+    # Perform DNS resolution
+    addrs = socket.getaddrinfo(host,fuzzerData.port)
+    host = addrs[0][4][0]
+    if host == "::1":
         host = "127.0.0.1"
-    
+
     # cheap testing for ipv6/ipv4/unix
     # don't think it's worth using regex for this, since the user
     # will have to actively go out of their way to subvert this.
